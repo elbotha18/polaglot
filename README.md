@@ -1,4 +1,4 @@
-# PolaGlot – Polish Language Telegram Bot
+# PolaGlot 🇵🇱 – Polish Language Telegram Bot
 
 **PolaGlot** is a Telegram bot designed to help users learn Polish. It provides explanations of grammar and vocabulary, corrects sentences, allows conversation practice, and offers short quizzes to reinforce learning.
 
