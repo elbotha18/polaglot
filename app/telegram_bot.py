@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -7,6 +8,9 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+
+# Load environment variables from .env file
+load_dotenv()
 from agent import (
     polaglot_response,
     conversation_practice,
