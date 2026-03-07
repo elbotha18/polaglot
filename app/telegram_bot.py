@@ -16,45 +16,90 @@ from agent import (
 )
 
 # -------------------------
+# Access Control
+# -------------------------
+
+def get_allowed_users():
+    """Read allowed user IDs from environment variable."""
+    allowed_users_str = os.getenv("ALLOWED_USERS", "")
+    if not allowed_users_str:
+        return set()
+    return {int(user_id.strip()) for user_id in allowed_users_str.split(",") if user_id.strip()}
+
+ALLOWED_USERS = get_allowed_users()
+
+async def check_access(update):
+    user_id = update.effective_user.id
+    return user_id in ALLOWED_USERS
+
+# -------------------------
 # Command Handlers
 # -------------------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_access(update):
+        await update.message.reply_text("This bot is currently private.")
+        return
+    
     context.user_data["mode"] = "explain"
     await update.message.reply_text(
         "Cześć! Jestem PolaGlot 🤖\nSend me a sentence in Polish and I'll explain the grammar and vocabulary!"
     )
 
 async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_access(update):
+        await update.message.reply_text("This bot is currently private.")
+        return
+    
     context.user_data["mode"] = "explain"
     await update.message.reply_text(
         "Send me a Polish sentence, and I will explain its grammar and vocabulary."
     )
 
 async def correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_access(update):
+        await update.message.reply_text("This bot is currently private.")
+        return
+    
     context.user_data["mode"] = "correct"
     await update.message.reply_text(
         "Send me a Polish sentence, and I will correct the grammar."
     )
 
 async def practice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_access(update):
+        await update.message.reply_text("This bot is currently private.")
+        return
+    
     context.user_data["mode"] = "practice"
     await update.message.reply_text(
         "Let's practice! Send me a sentence and I'll respond in Polish."
     )
 
 async def vocab(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_access(update):
+        await update.message.reply_text("This bot is currently private.")
+        return
+    
     context.user_data["mode"] = "vocab"
     await update.message.reply_text(
         "Send me a word or phrase, and I will explain its meaning and usage."
     )
 
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_access(update):
+        await update.message.reply_text("This bot is currently private.")
+        return
+    
     context.user_data["mode"] = "quiz"
     question = generate_quiz()
     await update.message.reply_text(question)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_access(update):
+        await update.message.reply_text("This bot is currently private.")
+        return
+    
     commands_text = (
         "/start - Introduce PolaGlot\n"
         "/explain - Explain a Polish sentence\n"
@@ -71,6 +116,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # -------------------------
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_access(update):
+        await update.message.reply_text("This bot is currently private.")
+        return
+    
     user_message = update.message.text
     mode = context.user_data.get("mode", "explain")
 
