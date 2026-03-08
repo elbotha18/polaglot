@@ -12,13 +12,13 @@ from telegram.ext import (
 # Load environment variables from .env file
 load_dotenv()
 from agent import (
-    polaglot_response,
+    tutor_response,
     conversation_practice,
     correct_grammar,
     explain_vocab,
     generate_quiz,
 )
-from database import init_db, save_user_state, load_user_state
+from database import init_db, save_user_state, load_user_state, add_message, get_history
 
 # Initialize database
 init_db()
@@ -150,12 +150,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_message = update.message.text
     
-    # Load user state from database
+    # Load user state and history from database
     db_state = load_user_state(user_id)
+    history = get_history(user_id)
     mode = db_state.get("mode", "explain")
 
     try:
-        if mode == "correct":
+        # Teacher Mode / Explain Mode (Now unified)
+        if mode == "explain":
+            reply = tutor_response(user_message, history)
+        elif mode == "correct":
             reply = correct_grammar(user_message)
         elif mode == "practice":
             reply = conversation_practice(user_message)
@@ -168,9 +172,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply = f"Thanks! Correct answer: {answer}\nUse /quiz for another question."
             else:
                 reply = "Use /quiz to start a new question."
-        else:  # default explanation
-            reply = polaglot_response(user_message)
-    except Exception:
+        else:
+            reply = tutor_response(user_message, history)
+        
+        # Save interaction to history
+        add_message(user_id, "user", user_message)
+        add_message(user_id, "assistant", reply)
+
+    except Exception as e:
+        print(f"Bot Error: {e}")
         reply = "Sorry, PolaGlot cannot respond right now."
 
     await update.message.reply_text(reply, parse_mode="Markdown")
