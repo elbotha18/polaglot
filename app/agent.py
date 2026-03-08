@@ -40,16 +40,17 @@ def translate_to_polish(text: str) -> str:
         return text  # fallback: return original text
 
 def clean_text(text: str) -> str:
-    """Remove any extra formatting or Markdown"""
+    """Clean extra formatting and optimize for Telegram MarkdownV2 compatibility"""
     import re
-    text = re.sub(r"[*_`]", "", text)
+    # We will keep some Markdown for Telegram (Bold and Code blocks)
+    # But clean redundant newlines and whitespace
     text = re.sub(r"\n\s*\n", "\n", text)
     return text.strip()
 
 def polaglot_response(user_message: str) -> str:
     """
     Explain grammar and vocabulary in a Polish sentence
-    Outputs plain text in Original / Translation / Breakdown format
+    Outputs text in Original / Translation / Breakdown format with Telegram Markdown
     """
     try:
         # Detect language
@@ -66,15 +67,16 @@ def polaglot_response(user_message: str) -> str:
         prompt = (
             f"You are PolaGlot, a Polish language tutor.\n"
             f"Explain grammar and vocabulary in the following sentence, in English.\n"
-            f"Output exactly in this format, plain text, no Markdown or emojis:\n\n"
-            f"Original: <English sentence>\n"
-            f"Translation: <Polish sentence>\n\n"
-            f"Breakdown:\n<each word>: <short explanation>\n\n"
+            f"Output in this format, use Telegram-friendly Markdown (bold for keys, monospaced for Polish):\n\n"
+            f"**Original:** <English sentence>\n"
+            f"**Translation:** `<Polish sentence>`\n\n"
+            f"**Breakdown:**\n"
+            f"• `<word>`: <short explanation>\n\n"
             f"Sentence to explain:\n{user_message_polish}"
         )
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash",
             contents=prompt
         )
 

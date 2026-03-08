@@ -18,6 +18,10 @@ from agent import (
     explain_vocab,
     generate_quiz,
 )
+from database import init_db, save_user_state, load_user_state
+
+# Initialize database
+init_db()
 
 # -------------------------
 # Access Control
@@ -50,7 +54,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(private_access_message(update))
         return
     
-    context.user_data["mode"] = "explain"
+    user_id = update.effective_user.id
+    save_user_state(user_id, mode="explain")
     await update.message.reply_text(
         "Cześć! Jestem PolaGlot 🤖\nSend me a sentence in Polish and I'll explain the grammar and vocabulary!"
     )
@@ -60,7 +65,8 @@ async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(private_access_message(update))
         return
     
-    context.user_data["mode"] = "explain"
+    user_id = update.effective_user.id
+    save_user_state(user_id, mode="explain")
     await update.message.reply_text(
         "Send me a Polish sentence, and I will explain its grammar and vocabulary."
     )
@@ -70,7 +76,8 @@ async def correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(private_access_message(update))
         return
     
-    context.user_data["mode"] = "correct"
+    user_id = update.effective_user.id
+    save_user_state(user_id, mode="correct")
     await update.message.reply_text(
         "Send me a Polish sentence, and I will correct the grammar."
     )
@@ -80,7 +87,8 @@ async def practice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(private_access_message(update))
         return
     
-    context.user_data["mode"] = "practice"
+    user_id = update.effective_user.id
+    save_user_state(user_id, mode="practice")
     await update.message.reply_text(
         "Let's practice! Send me a sentence and I'll respond in Polish."
     )
@@ -90,7 +98,8 @@ async def vocab(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(private_access_message(update))
         return
     
-    context.user_data["mode"] = "vocab"
+    user_id = update.effective_user.id
+    save_user_state(user_id, mode="vocab")
     await update.message.reply_text(
         "Send me a word or phrase, and I will explain its meaning and usage."
     )
@@ -100,10 +109,9 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(private_access_message(update))
         return
     
-    context.user_data["mode"] = "quiz"
+    user_id = update.effective_user.id
     question, answer = generate_quiz()
-    context.user_data["quiz_pending"] = True
-    context.user_data["quiz_answer"] = answer
+    save_user_state(user_id, mode="quiz", quiz_pending=True, quiz_answer=answer)
     await update.message.reply_text(
         f"{question}\n\nReply with your guess, and I will reveal the answer."
     )
@@ -133,8 +141,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(private_access_message(update))
         return
     
+    user_id = update.effective_user.id
     user_message = update.message.text
-    mode = context.user_data.get("mode", "explain")
+    
+    # Load user state from database
+    db_state = load_user_state(user_id)
+    mode = db_state.get("mode", "explain")
 
     try:
         if mode == "correct":
@@ -144,9 +156,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif mode == "vocab":
             reply = explain_vocab(user_message)
         elif mode == "quiz":
-            if context.user_data.get("quiz_pending"):
-                answer = context.user_data.get("quiz_answer", "Not available right now.")
-                context.user_data["quiz_pending"] = False
+            if db_state.get("quiz_pending"):
+                answer = db_state.get("quiz_answer", "Not available right now.")
+                save_user_state(user_id, quiz_pending=False)
                 reply = f"Thanks! Correct answer: {answer}\nUse /quiz for another question."
             else:
                 reply = "Use /quiz to start a new question."
