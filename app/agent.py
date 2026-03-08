@@ -46,8 +46,8 @@ def clean_text(text: str) -> str:
 
 async def tutor_response(user_message: str, history: list = None) -> str:
     """
-    Unified Teacher Mode: Decides intent, answers/corrects/explains, 
-    and provides Polish-first responses with history context.
+    Refined Tutor Mode: Dynamically switches between simple translation 
+    and full question-answering based on user intent.
     """
     try:
         # 1. Detect and ensure we have Polish version of input
@@ -61,7 +61,6 @@ async def tutor_response(user_message: str, history: list = None) -> str:
             user_message_english = user_message
         else:
             user_message_polish = user_message
-            # Basic back-translation for Gemini's context
             user_message_english = "(Polish Input)"
 
         # 2. Prepare context from history
@@ -72,22 +71,23 @@ async def tutor_response(user_message: str, history: list = None) -> str:
                 context_str += f"{role}: {msg['content']}\n"
 
         prompt = (
-            "You are PolaGlot, a warm and encouraging Polish language teacher.\n"
-            "Your goal is to help the student learn Polish through natural conversation and guidance.\n\n"
-            "RULES:\n"
-            "0. START by showing the Student's latest message in Polish and English.\n"
-            "1. ALWAYS respond in Polish first (a natural answer or acknowledgement).\n"
-            "2. Provide an English translation of your Polish response.\n"
-            "3. If the student asked a question, answer it. If they sent a sentence with errors, gently correct them.\n"
-            "4. Provide a short breakdown of important Polish words/grammar.\n"
-            "5. Use Telegram Markdown (bold for keys, monospaced for Polish).\n\n"
+            "You are PolaGlot, a warm and encouraging Polish language teacher.\n\n"
+            "TASK:\n"
+            "Analyze the Student's latest message. Determine if it is a QUESTION or a PHRASE.\n\n"
+            "IF IT IS A PHRASE (Greeting, statement, single word):\n"
+            "- Show the Student's input in Polish and English.\n"
+            "- Provide ONLY the Breakdown of words/grammar.\n\n"
+            "IF IT IS A QUESTION (Asking for facts, help, or information):\n"
+            "- Show the Student's input in Polish and English.\n"
+            "- Answer the question in Polish first, then English.\n"
+            "- Provide the Breakdown of words used in both the question and answer.\n\n"
             "FORMAT:\n"
-            "**Student:** `<Student message in Polish>`\n"
-            "*Translation: <Student message in English>*\n\n"
+            "**Student:** `<Polish version>`\n"
+            "*Translation: <English version>*\n\n"
             "---\n\n"
-            "**PolaGlot:** `<Polish Response>`\n"
-            "*Translation: <English Translation>*\n\n\n"
-            "**Teacher's Note:** <Your answer, correction, or encouraging feedback>\n\n\n"
+            "**PolaGlot:** (Only include this section if it was a QUESTION)\n"
+            "`<Your Polish Answer>`\n"
+            "*Translation: <Your English Answer>*\n\n\n"
             "**Breakdown:**\n"
             "• `<word>`: <explanation>\n\n"
             f"CONVERSATION HISTORY:\n{context_str}"
