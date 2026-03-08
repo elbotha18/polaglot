@@ -76,7 +76,7 @@ def polaglot_response(user_message: str) -> str:
         )
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=prompt
         )
 
