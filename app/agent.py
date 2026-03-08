@@ -47,32 +47,37 @@ def clean_text(text: str) -> str:
     text = re.sub(r"\n\s*\n", "\n", text)
     return text.strip()
 
-def polaglot_response(user_message: str) -> str:
+def tutor_response(user_message: str, history: list = None) -> str:
     """
-    Explain grammar and vocabulary in a Polish sentence
-    Outputs text in Original / Translation / Breakdown format with Telegram Markdown
+    Unified Teacher Mode: Decides intent, answers/corrects/explains, 
+    and provides Polish-first responses with history context.
     """
     try:
-        # Detect language
-        try:
-            lang = detect(user_message)
-        except Exception:
-            lang = "pl"
-
-        if lang == "en":
-            user_message_polish = translate_to_polish(user_message)
-        else:
-            user_message_polish = user_message
+        # Prepare context from history
+        context_str = ""
+        if history:
+            for msg in history:
+                role = "Student" if msg["role"] == "user" else "PolaGlot"
+                context_str += f"{role}: {msg['content']}\n"
 
         prompt = (
-            f"You are PolaGlot, a Polish language tutor.\n"
-            f"Explain grammar and vocabulary in the following sentence, in English.\n"
-            f"Output in this format, use Telegram-friendly Markdown (bold for keys, monospaced for Polish):\n\n"
-            f"**Original:** <English sentence>\n"
-            f"**Translation:** `<Polish sentence>`\n\n"
-            f"**Breakdown:**\n"
-            f"• `<word>`: <short explanation>\n\n"
-            f"Sentence to explain:\n{user_message_polish}"
+            "You are PolaGlot, a warm and encouraging Polish language teacher.\n"
+            "Your goal is to help the student learn Polish through natural conversation and guidance.\n\n"
+            "RULES:\n"
+            "1. ALWAYS respond in Polish first (a natural answer or acknowledgement).\n"
+            "2. Provide an English translation of your Polish response.\n"
+            "3. If the student asked a question (in EN or PL), answer it.\n"
+            "4. If the student sent a Polish sentence with errors, gently correct them and explain why.\n"
+            "5. Provide a short breakdown of important Polish words/grammar used in the interaction.\n"
+            "6. Use Telegram Markdown (bold for keys, monospaced for Polish).\n\n"
+            "FORMAT:\n"
+            "**PolaGlot:** `<Polish Response>`\n"
+            "*Translation: <English Translation>*\n\n"
+            "**Teacher's Note:** <Your answer, correction, or encouraging feedback>\n\n"
+            "**Breakdown:**\n"
+            "• `<word>`: <explanation>\n\n"
+            f"CONVERSATION HISTORY:\n{context_str}"
+            f"STUDENT'S LATEST MESSAGE: {user_message}"
         )
 
         response = client.models.generate_content(
@@ -82,8 +87,9 @@ def polaglot_response(user_message: str) -> str:
 
         return clean_text(response.text)
 
-    except Exception:
-        return "Sorry, PolaGlot cannot respond right now."
+    except Exception as e:
+        print(f"Agent Error: {e}")
+        return "Sorry, PolaGlot (the teacher) is a bit busy right now. Try again in a moment!"
 
 # -------------------------
 # Mode-specific functions

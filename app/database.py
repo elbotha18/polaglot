@@ -55,11 +55,60 @@ def init_db():
                     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
+            # Create conversation_history table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS conversation_history (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    role VARCHAR(20) NOT NULL, -- 'user' or 'assistant'
+                    content TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_user_history ON conversation_history(user_id, created_at);
+            """)
             conn.commit()
             print("Database tables initialized")
     except Exception as e:
         print(f"Error initializing database: {e}")
         conn.rollback()
+    finally:
+        release_connection(conn)
+
+def add_message(user_id, role, content):
+    """Add a message to the conversation history."""
+    conn = get_connection()
+    if not conn:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO conversation_history (user_id, role, content) VALUES (%s, %s, %s)",
+                (user_id, role, content)
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"Error adding message: {e}")
+        conn.rollback()
+    finally:
+        release_connection(conn)
+
+def get_history(user_id, limit=6):
+    """Retrieve the last N messages for a user."""
+    conn = get_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT role, content FROM conversation_history WHERE user_id = %s ORDER BY created_at DESC LIMIT %s",
+                (user_id, limit)
+            )
+            rows = cur.fetchall()
+            # Return in chronological order
+            return [{"role": r, "content": c} for r, c in reversed(rows)]
+    except Exception as e:
+        print(f"Error retrieving history: {e}")
+        return []
     finally:
         release_connection(conn)
 
