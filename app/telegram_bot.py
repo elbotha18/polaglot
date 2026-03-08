@@ -32,6 +32,11 @@ def get_allowed_users():
 
 ALLOWED_USERS = get_allowed_users()
 
+
+def private_access_message(update: Update) -> str:
+    user_id = update.effective_user.id if update.effective_user else "unknown"
+    return f"This bot is private. Request a demo from the dev for your ID: {user_id}"
+
 async def check_access(update):
     user_id = update.effective_user.id
     return user_id in ALLOWED_USERS
@@ -42,7 +47,7 @@ async def check_access(update):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_access(update):
-        await update.message.reply_text("This bot is currently private.")
+        await update.message.reply_text(private_access_message(update))
         return
     
     context.user_data["mode"] = "explain"
@@ -52,7 +57,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_access(update):
-        await update.message.reply_text("This bot is currently private.")
+        await update.message.reply_text(private_access_message(update))
         return
     
     context.user_data["mode"] = "explain"
@@ -62,7 +67,7 @@ async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_access(update):
-        await update.message.reply_text("This bot is currently private.")
+        await update.message.reply_text(private_access_message(update))
         return
     
     context.user_data["mode"] = "correct"
@@ -72,7 +77,7 @@ async def correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def practice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_access(update):
-        await update.message.reply_text("This bot is currently private.")
+        await update.message.reply_text(private_access_message(update))
         return
     
     context.user_data["mode"] = "practice"
@@ -82,7 +87,7 @@ async def practice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def vocab(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_access(update):
-        await update.message.reply_text("This bot is currently private.")
+        await update.message.reply_text(private_access_message(update))
         return
     
     context.user_data["mode"] = "vocab"
@@ -92,7 +97,7 @@ async def vocab(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_access(update):
-        await update.message.reply_text("This bot is currently private.")
+        await update.message.reply_text(private_access_message(update))
         return
     
     context.user_data["mode"] = "quiz"
@@ -101,7 +106,7 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_access(update):
-        await update.message.reply_text("This bot is currently private.")
+        await update.message.reply_text(private_access_message(update))
         return
     
     commands_text = (
@@ -121,7 +126,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_access(update):
-        await update.message.reply_text("This bot is currently private.")
+        await update.message.reply_text(private_access_message(update))
         return
     
     user_message = update.message.text
