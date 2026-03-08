@@ -1,37 +1,50 @@
-# PolaGlot 🇵🇱 – Polish Language Telegram Bot
+# PolaGlot 🇵🇱 – Your AI Polish Teacher
 
-**PolaGlot** is a Telegram bot designed to help users learn Polish. It provides explanations of grammar and vocabulary, corrects sentences, allows conversation practice, and offers short quizzes to reinforce learning.
+**PolaGlot** is a smart Telegram bot designed to help you master the Polish language through natural conversation, personalized guidance, and interactive quizzes.
 
 ---
 
 ## Features
 
-- `/start` – Introduces PolaGlot and instructions for usage.  
-- `/explain` – Explain a Polish sentence with grammar and vocabulary breakdown in English.  
-- `/correct` – Correct the grammar of a Polish sentence.  
-- `/practice` – Practice conversation in Polish; PolaGlot responds naturally in Polish.  
-- `/vocab` – Explain the meaning and usage of a word or phrase.  
-- `/quiz` – Generate a short Polish quiz question.  
-- `/help` – Show the list of available commands.  
+- **Smart Tutor Mode** – Send any word or sentence in English or Polish. PolaGlot dynamically decides whether to translate, explain vocabulary, or correct your grammar.
+- **Polish-First Responses** – The teacher always models correct Polish usage by responding in Polish first, followed by a translation and a helpful teacher's note.
+- **Immersion Mode (`/practice`)** – Switch to a Polish-only environment for pure conversation practice.
+- **Interactive Quizzes (`/quiz`)** – Reinforce your learning with quick, multiple-choice grammar and vocab quizzes.
+- **Contextual Memory** – PolaGlot remembers the last few messages of your conversation, allowing for natural follow-up questions.
 
-The bot automatically detects if input is in English and translates it to Polish before explaining.
+---
+
+## Commands
+
+- `/start` – Introduce PolaGlot and reset your session.
+- `/tutor` – Switch to Smart Tutor mode (Translations + Explanations).
+- `/practice` – Switch to Immersion mode (Polish-only conversation).
+- `/quiz` – Take a quick Polish grammar or vocabulary quiz.
+- `/help` – Show the list of available commands.
 
 ---
 
 ## Example Interaction
 
-**/practice**  
-Let's practice! Send me a sentence and I'll respond in Polish.
+**User:** "How do I say 'I am learning' in Polish?"
 
-**User:** Jak się masz?  
-**Bot:**  
-Original: How are you?  
-Translation: Jak się masz?  
+**PolaGlot:**
+**Student:** `I am learning`
+*Translation: Uczę się*
 
-**Breakdown:**  
-- Jak – how  
-- się – reflexive particle  
-- masz – you have (from 'mieć' - to have)  
+---
+
+**PolaGlot:** `Uczę się języka polskiego.`
+*Translation: I am learning the Polish language.*
+
+
+**Teacher's Note:** You use the reflexive verb **uczyć się**. Note that when you specify *what* you are learning, you use the Genitive case (języka polskiego).
+
+
+**Breakdown:**
+• `uczę`: I teach (first person singular)
+• `się`: reflexive particle (makes it 'I teach myself' -> 'I learn')
+• `języka`: language (Genitive case)
 
 ---
 
