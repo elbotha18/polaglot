@@ -50,7 +50,21 @@ async def tutor_response(user_message: str, history: list = None) -> str:
     and provides Polish-first responses with history context.
     """
     try:
-        # Prepare context from history
+        # 1. Detect and ensure we have Polish version of input
+        try:
+            lang = detect(user_message)
+        except Exception:
+            lang = "pl"
+
+        if lang == "en":
+            user_message_polish = await translate_to_polish(user_message)
+            user_message_english = user_message
+        else:
+            user_message_polish = user_message
+            # Basic back-translation for Gemini's context
+            user_message_english = "(Polish Input)"
+
+        # 2. Prepare context from history
         context_str = ""
         if history:
             for msg in history:
@@ -61,25 +75,24 @@ async def tutor_response(user_message: str, history: list = None) -> str:
             "You are PolaGlot, a warm and encouraging Polish language teacher.\n"
             "Your goal is to help the student learn Polish through natural conversation and guidance.\n\n"
             "RULES:\n"
-            "0. START by showing the Student's latest message in Polish (translate it if they sent English) and the English translation.\n"
+            "0. START by showing the Student's latest message in Polish and English.\n"
             "1. ALWAYS respond in Polish first (a natural answer or acknowledgement).\n"
             "2. Provide an English translation of your Polish response.\n"
-            "3. If the student asked a question (in EN or PL), answer it.\n"
-            "4. If the student sent a Polish sentence with errors, gently correct them and explain why.\n"
-            "5. Provide a short breakdown of important Polish words/grammar used in the interaction.\n"
-            "6. Use Telegram Markdown (bold for keys, monospaced for Polish).\n\n"
+            "3. If the student asked a question, answer it. If they sent a sentence with errors, gently correct them.\n"
+            "4. Provide a short breakdown of important Polish words/grammar.\n"
+            "5. Use Telegram Markdown (bold for keys, monospaced for Polish).\n\n"
             "FORMAT:\n"
             "**Student:** `<Student message in Polish>`\n"
             "*Translation: <Student message in English>*\n\n"
-            "---"
-            "\n\n"
+            "---\n\n"
             "**PolaGlot:** `<Polish Response>`\n"
             "*Translation: <English Translation>*\n\n\n"
             "**Teacher's Note:** <Your answer, correction, or encouraging feedback>\n\n\n"
             "**Breakdown:**\n"
             "• `<word>`: <explanation>\n\n"
             f"CONVERSATION HISTORY:\n{context_str}"
-            f"STUDENT'S LATEST MESSAGE: {user_message}"
+            f"STUDENT'S POLISH: {user_message_polish}\n"
+            f"STUDENT'S ENGLISH: {user_message_english}"
         )
 
         response = await client.aio.models.generate_content(
@@ -91,7 +104,7 @@ async def tutor_response(user_message: str, history: list = None) -> str:
 
     except Exception as e:
         print(f"Agent Error: {e}")
-        return "Sorry, PolaGlot (the teacher) is a bit busy right now. Try again in a moment!"
+        return "Sorry, PolaGlot is a bit busy. Try again!"
 
 # -------------------------
 # Mode-specific functions
