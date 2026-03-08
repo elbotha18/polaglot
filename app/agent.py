@@ -49,24 +49,44 @@ def clean_text(text: str) -> str:
     # Just trim leading/trailing whitespace
     return text.strip()
 
+async def translate_to_english(text: str) -> str:
+    """Translate Polish text to English using Gemini - Strict Output"""
+    prompt = (
+        f"Translate the following Polish text to English.\n"
+        f"Respond ONLY with the translated text. Do not provide explanations.\n\n"
+        f"Text to translate: {text}"
+    )
+    try:
+        response = await client.aio.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        return response.text.strip()
+    except Exception:
+        return text
+
 async def tutor_response(user_message: str, history: list = None) -> str:
     """
     Refined Tutor Mode: Dynamically switches between simple translation 
     and full question-answering based on user intent.
     """
     try:
-        # 1. Detect and ensure we have Polish version of input
+        # 1. Determine direction and translations
         try:
             lang = detect(user_message)
         except Exception:
             lang = "pl"
 
         if lang == "en":
-            user_message_polish = await translate_to_polish(user_message)
-            user_message_english = user_message
+            # Student typed English
+            student_text = user_message
+            translation_text = await translate_to_polish(user_message)
+            input_lang = "English"
         else:
-            user_message_polish = user_message
-            user_message_english = "(Polish Input)"
+            # Student typed Polish
+            student_text = user_message
+            translation_text = await translate_to_english(user_message)
+            input_lang = "Polish"
 
         # 2. Prepare context from history
         context_str = ""
@@ -80,15 +100,15 @@ async def tutor_response(user_message: str, history: list = None) -> str:
             "TASK:\n"
             "Analyze the Student's latest message. Determine if it is a QUESTION or a PHRASE.\n\n"
             "IF IT IS A PHRASE (Greeting, statement, single word):\n"
-            "- Show the Student's input in Polish and English.\n"
+            "- Show the Student's input and its translation.\n"
             "- Provide ONLY the Breakdown of words/grammar.\n\n"
             "IF IT IS A QUESTION (Asking for facts, help, or information):\n"
-            "- Show the Student's input in Polish and English.\n"
+            "- Show the Student's input and its translation.\n"
             "- Answer the question in Polish first, then English.\n"
             "- Provide the Breakdown of words used in both the question and answer.\n\n"
             "FORMAT:\n"
-            "**Student:** `<Polish version>`\n"
-            "*Translation: <English version>*\n\n"
+            "**Student:** <Input text>\n"
+            "**Translation:** `<Translated text>`\n\n"
             "---\n\n"
             "**PolaGlot:** (Only include this section if it was a QUESTION)\n"
             "`<Your Polish Answer>`\n"
@@ -96,8 +116,8 @@ async def tutor_response(user_message: str, history: list = None) -> str:
             "**Breakdown:**\n"
             "• `<word>`: <explanation>\n\n"
             f"CONVERSATION HISTORY:\n{context_str}"
-            f"STUDENT'S POLISH: {user_message_polish}\n"
-            f"STUDENT'S ENGLISH: {user_message_english}"
+            f"STUDENT'S INPUT ({input_lang}): {student_text}\n"
+            f"TRANSLATION: {translation_text}"
         )
 
         response = await client.aio.models.generate_content(
