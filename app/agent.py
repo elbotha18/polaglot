@@ -68,7 +68,7 @@ def polaglot_response(user_message: str) -> str:
             f"Explain grammar and vocabulary in the following sentence, in English.\n"
             f"Output exactly in this format, plain text, no Markdown or emojis:\n\n"
             f"Original: <English sentence>\n"
-            f"Translation: <Polish sentence>\n"
+            f"Translation: <Polish sentence>\n\n"
             f"Breakdown:\n<each word>: <short explanation>\n\n"
             f"Sentence to explain:\n{user_message_polish}"
         )
@@ -138,18 +138,37 @@ def explain_vocab(user_message: str) -> str:
     except Exception:
         return "Sorry, I can't explain the vocabulary right now."
 
-def generate_quiz() -> str:
-    """Provide a short Polish quiz question"""
+def generate_quiz() -> tuple[str, str]:
+    """Provide a short Polish quiz question and its answer."""
     prompt = (
         f"You are PolaGlot, a Polish language tutor.\n"
-        f"Generate one short multiple-choice question in Polish with 3 options and the correct answer.\n"
-        f"Provide only plain text."
+        f"Generate one short multiple-choice question in Polish with 3 options.\n"
+        f"Return plain text in exactly this format:\n"
+        f"Question: <question text>\n"
+        f"A) <option A>\n"
+        f"B) <option B>\n"
+        f"C) <option C>\n"
+        f"Answer: <letter and option text>"
     )
     try:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
         )
-        return clean_text(response.text)
+        quiz_text = clean_text(response.text)
+
+        answer = "Not available right now."
+        question_lines = []
+
+        for line in quiz_text.splitlines():
+            stripped = line.strip()
+            lower = stripped.lower()
+            if lower.startswith("answer:"):
+                answer = stripped.split(":", 1)[1].strip() or answer
+            else:
+                question_lines.append(line)
+
+        question = "\n".join(question_lines).strip() or quiz_text
+        return question, answer
     except Exception:
-        return "Sorry, the quiz is not available right now."
+        return "Sorry, the quiz is not available right now.", "Not available right now."

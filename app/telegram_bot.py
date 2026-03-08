@@ -101,8 +101,12 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     context.user_data["mode"] = "quiz"
-    question = generate_quiz()
-    await update.message.reply_text(question)
+    question, answer = generate_quiz()
+    context.user_data["quiz_pending"] = True
+    context.user_data["quiz_answer"] = answer
+    await update.message.reply_text(
+        f"{question}\n\nReply with your guess, and I will reveal the answer."
+    )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_access(update):
@@ -140,7 +144,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif mode == "vocab":
             reply = explain_vocab(user_message)
         elif mode == "quiz":
-            reply = generate_quiz()
+            if context.user_data.get("quiz_pending"):
+                answer = context.user_data.get("quiz_answer", "Not available right now.")
+                context.user_data["quiz_pending"] = False
+                reply = f"Thanks! Correct answer: {answer}\nUse /quiz for another question."
+            else:
+                reply = "Use /quiz to start a new question."
         else:  # default explanation
             reply = polaglot_response(user_message)
     except Exception:
