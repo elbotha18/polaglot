@@ -27,11 +27,11 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 # Helper functions
 # -------------------------
 
-def translate_to_polish(text: str) -> str:
+async def translate_to_polish(text: str) -> str:
     """Translate English text to Polish using Gemini"""
     prompt = f"Translate this English sentence to Polish, keeping meaning precise:\n{text}"
     try:
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
         )
@@ -44,7 +44,7 @@ def clean_text(text: str) -> str:
     # Just trim leading/trailing whitespace
     return text.strip()
 
-def tutor_response(user_message: str, history: list = None) -> str:
+async def tutor_response(user_message: str, history: list = None) -> str:
     """
     Unified Teacher Mode: Decides intent, answers/corrects/explains, 
     and provides Polish-first responses with history context.
@@ -77,7 +77,7 @@ def tutor_response(user_message: str, history: list = None) -> str:
             f"STUDENT'S LATEST MESSAGE: {user_message}"
         )
 
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
         )
@@ -92,7 +92,7 @@ def tutor_response(user_message: str, history: list = None) -> str:
 # Mode-specific functions
 # -------------------------
 
-def conversation_practice(user_message: str) -> str:
+async def conversation_practice(user_message: str) -> str:
     """Respond naturally in Polish for conversation practice"""
     prompt = (
         f"You are PolaGlot, a Polish language tutor.\n"
@@ -101,7 +101,7 @@ def conversation_practice(user_message: str) -> str:
         f"Keep it short, conversational, and do not provide explanations."
     )
     try:
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
         )
@@ -109,7 +109,7 @@ def conversation_practice(user_message: str) -> str:
     except Exception:
         return "Sorry, I can't respond right now."
 
-def correct_grammar(user_message: str) -> str:
+async def correct_grammar(user_message: str) -> str:
     """Correct grammar of a Polish sentence"""
     prompt = (
         f"You are PolaGlot, a Polish language tutor.\n"
@@ -118,7 +118,7 @@ def correct_grammar(user_message: str) -> str:
         f"Respond only with the corrected sentence, no explanations."
     )
     try:
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
         )
@@ -126,7 +126,7 @@ def correct_grammar(user_message: str) -> str:
     except Exception:
         return "Sorry, I can't correct the sentence right now."
 
-def explain_vocab(user_message: str) -> str:
+async def explain_vocab(user_message: str) -> str:
     """Explain the vocabulary of a word or phrase"""
     prompt = (
         f"You are PolaGlot, a Polish language tutor.\n"
@@ -135,7 +135,7 @@ def explain_vocab(user_message: str) -> str:
         f"Keep the explanation short and plain text."
     )
     try:
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
         )
@@ -143,7 +143,7 @@ def explain_vocab(user_message: str) -> str:
     except Exception:
         return "Sorry, I can't explain the vocabulary right now."
 
-def generate_quiz() -> tuple[str, str]:
+async def generate_quiz() -> tuple[str, str]:
     """Provide a short Polish quiz question and its answer."""
     prompt = (
         f"You are PolaGlot, a Polish language tutor.\n"
@@ -156,7 +156,7 @@ def generate_quiz() -> tuple[str, str]:
         f"Answer: <letter and option text>"
     )
     try:
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
         )
