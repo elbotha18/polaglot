@@ -57,7 +57,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     save_user_state(user_id, mode="explain")
     await update.message.reply_text(
-        "Cześć! Jestem PolaGlot 🤖\nSend me a sentence in Polish and I'll explain the grammar and vocabulary!"
+        "Cześć! Jestem PolaGlot 🤖\nSend me a sentence in Polish and I'll explain the grammar and vocabulary!",
+        parse_mode="Markdown"
     )
 
 async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -68,7 +69,8 @@ async def explain(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     save_user_state(user_id, mode="explain")
     await update.message.reply_text(
-        "Send me a Polish sentence, and I will explain its grammar and vocabulary."
+        "Send me a Polish sentence, and I will explain its grammar and vocabulary.",
+        parse_mode="Markdown"
     )
 
 async def correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -79,7 +81,8 @@ async def correct(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     save_user_state(user_id, mode="correct")
     await update.message.reply_text(
-        "Send me a Polish sentence, and I will correct the grammar."
+        "Send me a Polish sentence, and I will correct the grammar.",
+        parse_mode="Markdown"
     )
 
 async def practice(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -90,7 +93,8 @@ async def practice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     save_user_state(user_id, mode="practice")
     await update.message.reply_text(
-        "Let's practice! Send me a sentence and I'll respond in Polish."
+        "Let's practice! Send me a sentence and I'll respond in Polish.",
+        parse_mode="Markdown"
     )
 
 async def vocab(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -101,7 +105,8 @@ async def vocab(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     save_user_state(user_id, mode="vocab")
     await update.message.reply_text(
-        "Send me a word or phrase, and I will explain its meaning and usage."
+        "Send me a word or phrase, and I will explain its meaning and usage.",
+        parse_mode="Markdown"
     )
 
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -113,7 +118,8 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
     question, answer = generate_quiz()
     save_user_state(user_id, mode="quiz", quiz_pending=True, quiz_answer=answer)
     await update.message.reply_text(
-        f"{question}\n\nReply with your guess, and I will reveal the answer."
+        f"{question}\n\nReply with your guess, and I will reveal the answer.",
+        parse_mode="Markdown"
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -130,7 +136,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/quiz - Short Polish quiz\n"
         "/help - Show this list"
     )
-    await update.message.reply_text(commands_text)
+    await update.message.reply_text(commands_text, parse_mode="Markdown")
 
 # -------------------------
 # Message handler
@@ -167,7 +173,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         reply = "Sorry, PolaGlot cannot respond right now."
 
-    await update.message.reply_text(reply)
+    await update.message.reply_text(reply, parse_mode="Markdown")
 
 # -------------------------
 # Run the bot
