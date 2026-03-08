@@ -115,7 +115,8 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     user_id = update.effective_user.id
-    question, answer = generate_quiz()
+    await update.message.reply_chat_action(action="typing")
+    question, answer = await generate_quiz()
     save_user_state(user_id, mode="quiz", quiz_pending=True, quiz_answer=answer)
     await update.message.reply_text(
         f"{question}\n\nReply with your guess, and I will reveal the answer.",
@@ -155,16 +156,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     history = get_history(user_id)
     mode = db_state.get("mode", "explain")
 
+    # Show "typing..." status while Gemini is processing
+    await update.message.reply_chat_action(action="typing")
+
     try:
         # Teacher Mode / Explain Mode (Now unified)
-        if mode == "explain":
-            reply = tutor_response(user_message, history)
-        elif mode == "correct":
-            reply = correct_grammar(user_message)
+        if mode == "correct":
+            reply = await correct_grammar(user_message)
         elif mode == "practice":
-            reply = conversation_practice(user_message)
+            reply = await conversation_practice(user_message)
         elif mode == "vocab":
-            reply = explain_vocab(user_message)
+            reply = await explain_vocab(user_message)
         elif mode == "quiz":
             if db_state.get("quiz_pending"):
                 answer = db_state.get("quiz_answer", "Not available right now.")
@@ -173,7 +175,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 reply = "Use /quiz to start a new question."
         else:
-            reply = tutor_response(user_message, history)
+            # Default to Tutor Mode
+            reply = await tutor_response(user_message, history)
         
         # Save interaction to history
         add_message(user_id, "user", user_message)
