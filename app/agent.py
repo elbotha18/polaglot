@@ -40,11 +40,8 @@ def translate_to_polish(text: str) -> str:
         return text  # fallback: return original text
 
 def clean_text(text: str) -> str:
-    """Clean extra formatting and optimize for Telegram MarkdownV2 compatibility"""
-    import re
-    # We will keep some Markdown for Telegram (Bold and Code blocks)
-    # But clean redundant newlines and whitespace
-    text = re.sub(r"\n\s*\n", "\n", text)
+    """Clean extra formatting and optimize for Telegram Markdown compatibility"""
+    # Just trim leading/trailing whitespace
     return text.strip()
 
 def tutor_response(user_message: str, history: list = None) -> str:
