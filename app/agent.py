@@ -28,8 +28,13 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 # -------------------------
 
 async def translate_to_polish(text: str) -> str:
-    """Translate English text to Polish using Gemini"""
-    prompt = f"Translate this English sentence to Polish, keeping meaning precise:\n{text}"
+    """Translate English text to Polish using Gemini - Strict Output"""
+    prompt = (
+        f"Translate the following English text to Polish.\n"
+        f"Respond ONLY with the translated text. Do not provide explanations, "
+        f"pronunciation guides, or alternate versions.\n\n"
+        f"Text to translate: {text}"
+    )
     try:
         response = await client.aio.models.generate_content(
             model="gemini-2.5-flash",
