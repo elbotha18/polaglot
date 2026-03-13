@@ -45,26 +45,40 @@ def init_db():
     
     try:
         with conn.cursor() as cur:
-            # Create user_state table
+            # Create bot_configs table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS bot_configs (
+                    id SERIAL PRIMARY KEY,
+                    token TEXT UNIQUE NOT NULL,
+                    language_name VARCHAR(100) NOT NULL,
+                    language_code VARCHAR(10) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+
+            # Create user_state table with bot_id
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS user_state (
-                    user_id BIGINT PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    bot_id INTEGER NOT NULL REFERENCES bot_configs(id) ON DELETE CASCADE,
                     mode VARCHAR(50) DEFAULT 'explain',
                     quiz_pending BOOLEAN DEFAULT FALSE,
                     quiz_answer TEXT,
-                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (user_id, bot_id)
                 );
             """)
-            # Create conversation_history table
+            # Create conversation_history table with bot_id
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS conversation_history (
                     id SERIAL PRIMARY KEY,
                     user_id BIGINT NOT NULL,
+                    bot_id INTEGER NOT NULL REFERENCES bot_configs(id) ON DELETE CASCADE,
                     role VARCHAR(20) NOT NULL, -- 'user' or 'assistant'
                     content TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
-                CREATE INDEX IF NOT EXISTS idx_user_history ON conversation_history(user_id, created_at);
+                CREATE INDEX IF NOT EXISTS idx_user_bot_history ON conversation_history(user_id, bot_id, created_at);
             """)
             conn.commit()
             print("Database tables initialized")
@@ -74,7 +88,23 @@ def init_db():
     finally:
         release_connection(conn)
 
-def add_message(user_id, role, content):
+def get_bot_configs():
+    """Fetch all active bot configurations."""
+    conn = get_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, token, language_name, language_code FROM bot_configs")
+            rows = cur.fetchall()
+            return [{"id": r[0], "token": r[1], "language_name": r[2], "language_code": r[3]} for r in rows]
+    except Exception as e:
+        print(f"Error fetching bot configs: {e}")
+        return []
+    finally:
+        release_connection(conn)
+
+def add_message(user_id, bot_id, role, content):
     """Add a message to the conversation history."""
     conn = get_connection()
     if not conn:
@@ -82,8 +112,8 @@ def add_message(user_id, role, content):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO conversation_history (user_id, role, content) VALUES (%s, %s, %s)",
-                (user_id, role, content)
+                "INSERT INTO conversation_history (user_id, bot_id, role, content) VALUES (%s, %s, %s, %s)",
+                (user_id, bot_id, role, content)
             )
             conn.commit()
     except Exception as e:
@@ -92,16 +122,16 @@ def add_message(user_id, role, content):
     finally:
         release_connection(conn)
 
-def get_history(user_id, limit=6):
-    """Retrieve the last N messages for a user."""
+def get_history(user_id, bot_id, limit=6):
+    """Retrieve the last N messages for a user and bot."""
     conn = get_connection()
     if not conn:
         return []
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT role, content FROM conversation_history WHERE user_id = %s ORDER BY created_at DESC LIMIT %s",
-                (user_id, limit)
+                "SELECT role, content FROM conversation_history WHERE user_id = %s AND bot_id = %s ORDER BY created_at DESC LIMIT %s",
+                (user_id, bot_id, limit)
             )
             rows = cur.fetchall()
             # Return in chronological order
@@ -112,7 +142,7 @@ def get_history(user_id, limit=6):
     finally:
         release_connection(conn)
 
-def save_user_state(user_id, mode=None, quiz_pending=None, quiz_answer=None):
+def save_user_state(user_id, bot_id, mode=None, quiz_pending=None, quiz_answer=None):
     """Save or update user state in the database."""
     conn = get_connection()
     if not conn:
@@ -122,14 +152,14 @@ def save_user_state(user_id, mode=None, quiz_pending=None, quiz_answer=None):
         with conn.cursor() as cur:
             # Use UPSERT (INSERT ... ON CONFLICT)
             cur.execute("""
-                INSERT INTO user_state (user_id, mode, quiz_pending, quiz_answer, last_updated)
-                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
-                ON CONFLICT (user_id) DO UPDATE SET
+                INSERT INTO user_state (user_id, bot_id, mode, quiz_pending, quiz_answer, last_updated)
+                VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (user_id, bot_id) DO UPDATE SET
                     mode = COALESCE(EXCLUDED.mode, user_state.mode),
                     quiz_pending = COALESCE(EXCLUDED.quiz_pending, user_state.quiz_pending),
                     quiz_answer = COALESCE(EXCLUDED.quiz_answer, user_state.quiz_answer),
                     last_updated = CURRENT_TIMESTAMP;
-            """, (user_id, mode, quiz_pending, quiz_answer))
+            """, (user_id, bot_id, mode, quiz_pending, quiz_answer))
             conn.commit()
     except Exception as e:
         print(f"Error saving user state: {e}")
@@ -137,7 +167,7 @@ def save_user_state(user_id, mode=None, quiz_pending=None, quiz_answer=None):
     finally:
         release_connection(conn)
 
-def load_user_state(user_id):
+def load_user_state(user_id, bot_id):
     """Load user state from the database."""
     conn = get_connection()
     if not conn:
@@ -145,7 +175,7 @@ def load_user_state(user_id):
 
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT mode, quiz_pending, quiz_answer FROM user_state WHERE user_id = %s", (user_id,))
+            cur.execute("SELECT mode, quiz_pending, quiz_answer FROM user_state WHERE user_id = %s AND bot_id = %s", (user_id, bot_id))
             row = cur.fetchone()
             if row:
                 return {

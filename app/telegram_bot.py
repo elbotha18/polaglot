@@ -1,4 +1,6 @@
 import os
+import asyncio
+import logging
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import (
@@ -8,6 +10,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from functools import partial
 
 # Load environment variables from .env file
 load_dotenv()
@@ -18,10 +21,24 @@ from agent import (
     explain_vocab,
     generate_quiz,
 )
-from database import init_db, save_user_state, load_user_state, add_message, get_history
+from database import (
+    init_db, 
+    save_user_state, 
+    load_user_state, 
+    add_message, 
+    get_history,
+    get_bot_configs
+)
 
 # Initialize database
 init_db()
+
+# Configure logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 # -------------------------
 # Access Control
@@ -36,7 +53,6 @@ def get_allowed_users():
 
 ALLOWED_USERS = get_allowed_users()
 
-
 def private_access_message(update: Update) -> str:
     user_id = update.effective_user.id if update.effective_user else "unknown"
     return f"This bot is private. Request a demo from the dev for your ID: {user_id}"
@@ -49,70 +65,82 @@ async def check_access(update):
 # Command Handlers
 # -------------------------
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_config: dict):
     if not await check_access(update):
         await update.message.reply_text(private_access_message(update))
         return
     
     user_id = update.effective_user.id
-    save_user_state(user_id, mode="explain")
+    bot_id = bot_config['id']
+    lang_name = bot_config['language_name']
+    
+    save_user_state(user_id, bot_id, mode="explain")
     await update.message.reply_text(
-        "Cześć! Jestem PolaGlot 🤖 Your personal Polish language tutor.\n\n"
-        "Just send me anything in English or Polish, and I will help you learn!\n"
+        f"Cześć! Jestem PolaGlot 🤖 Your personal {lang_name} language tutor.\n\n"
+        f"Just send me anything in English or {lang_name}, and I will help you learn!\n"
         "I can translate, correct your grammar, explain words, or just chat.",
         parse_mode="Markdown"
     )
 
-async def practice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def practice(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_config: dict):
     if not await check_access(update):
         await update.message.reply_text(private_access_message(update))
         return
     
     user_id = update.effective_user.id
-    save_user_state(user_id, mode="practice")
+    bot_id = bot_config['id']
+    lang_name = bot_config['language_name']
+    
+    save_user_state(user_id, bot_id, mode="practice")
     await update.message.reply_text(
-        "**Immersion Mode Enabled!** 🇵🇱\nI will now respond only in Polish to help you practice natural conversation. Use /tutor to switch back.",
+        f"**Immersion Mode Enabled!**\nI will now respond only in {lang_name} to help you practice natural conversation. Use /tutor to switch back.",
         parse_mode="Markdown"
     )
 
-async def tutor_mode_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def tutor_mode_command(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_config: dict):
     if not await check_access(update):
         await update.message.reply_text(private_access_message(update))
         return
     
     user_id = update.effective_user.id
-    save_user_state(user_id, mode="explain")
+    bot_id = bot_config['id']
+    
+    save_user_state(user_id, bot_id, mode="explain")
     await update.message.reply_text(
         "**Tutor Mode Enabled!** 👨‍🏫\nI will now provide translations, explanations, and grammar notes for everything we discuss.",
         parse_mode="Markdown"
     )
 
-async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_config: dict):
     if not await check_access(update):
         await update.message.reply_text(private_access_message(update))
         return
     
     user_id = update.effective_user.id
+    bot_id = bot_config['id']
+    lang_name = bot_config['language_name']
+    
     await update.message.reply_chat_action(action="typing")
-    question, answer = await generate_quiz()
-    save_user_state(user_id, mode="quiz", quiz_pending=True, quiz_answer=answer)
+    question, answer = await generate_quiz(lang_name)
+    save_user_state(user_id, bot_id, mode="quiz", quiz_pending=True, quiz_answer=answer)
     await update.message.reply_text(
         f"{question}\n\nReply with your guess, and I will reveal the answer.",
         parse_mode="Markdown"
     )
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_config: dict):
     if not await check_access(update):
         await update.message.reply_text(private_access_message(update))
         return
     
+    lang_name = bot_config['language_name']
     commands_text = (
         "**PolaGlot Commands:**\n"
         "/tutor - Smart Tutor mode (Explanations + English notes)\n"
-        "/practice - Immersion mode (Polish only conversation)\n"
-        "/quiz - Take a quick Polish quiz\n"
+        "/practice - Immersion mode (Target language only conversation)\n"
+        "/quiz - Take a quick quiz\n"
         "/help - Show this list\n\n"
-        "**Tip:** You don't need commands to learn! Just send me any Polish sentence to correct it, or ask me a question in English."
+        f"**Tip:** You don't need commands to learn! Just send me any {lang_name} sentence to correct it, or ask me a question in English."
     )
     await update.message.reply_text(commands_text, parse_mode="Markdown")
 
@@ -120,17 +148,20 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Message handler
 # -------------------------
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_config: dict):
     if not await check_access(update):
         await update.message.reply_text(private_access_message(update))
         return
     
     user_id = update.effective_user.id
+    bot_id = bot_config['id']
+    lang_name = bot_config['language_name']
+    lang_code = bot_config['language_code']
     user_message = update.message.text
     
     # Load user state and history from database
-    db_state = load_user_state(user_id)
-    history = get_history(user_id)
+    db_state = load_user_state(user_id, bot_id)
+    history = get_history(user_id, bot_id)
     mode = db_state.get("mode", "explain")
 
     # Show "typing..." status while Gemini is processing
@@ -139,74 +170,71 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if mode == "practice":
             # Immersion Mode
-            reply = await conversation_practice(user_message)
+            reply = await conversation_practice(user_message, lang_name)
         elif mode == "quiz":
             if db_state.get("quiz_pending"):
                 answer = db_state.get("quiz_answer", "Not available right now.")
-                save_user_state(user_id, quiz_pending=False)
+                save_user_state(user_id, bot_id, quiz_pending=False)
                 reply = f"Thanks! Correct answer: {answer}\nUse /quiz for another question."
             else:
                 reply = "Use /quiz to start a new question."
         else:
             # Default to Smart Tutor Mode (Unified logic)
-            reply = await tutor_response(user_message, history)
+            reply = await tutor_response(user_message, lang_name, lang_code, history)
         
         # Save interaction to history
-        add_message(user_id, "user", user_message)
-        add_message(user_id, "assistant", reply)
+        add_message(user_id, bot_id, "user", user_message)
+        add_message(user_id, bot_id, "assistant", reply)
 
     except Exception as e:
-        print(f"Bot Error: {e}")
+        logger.error(f"Bot Error: {e}")
         reply = "Sorry, PolaGlot cannot respond right now."
 
     await update.message.reply_text(reply, parse_mode="Markdown")
 
 # -------------------------
-# Run the bot
+# Run the bots
 # -------------------------
 
-def run_bot():
-    TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not TELEGRAM_TOKEN:
-        raise ValueError("TELEGRAM_BOT_TOKEN not set in environment")
+async def run_single_bot(bot_config):
+    """Initialize and run a single bot instance."""
+    token = bot_config['token']
+    lang_name = bot_config['language_name']
+    
+    logger.info(f"Starting bot for {lang_name}...")
+    
+    app = ApplicationBuilder().token(token).build()
 
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    # Register commands with bot_config bound
+    app.add_handler(CommandHandler("start", partial(start, bot_config=bot_config)))
+    app.add_handler(CommandHandler("tutor", partial(tutor_mode_command, bot_config=bot_config)))
+    app.add_handler(CommandHandler("practice", partial(practice, bot_config=bot_config)))
+    app.add_handler(CommandHandler("quiz", partial(quiz, bot_config=bot_config)))
+    app.add_handler(CommandHandler("help", partial(help_command, bot_config=bot_config)))
 
-    # Register commands
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("tutor", tutor_mode_command))
-    app.add_handler(CommandHandler("practice", practice))
-    app.add_handler(CommandHandler("quiz", quiz))
-    app.add_handler(CommandHandler("help", help_command))
+    # Register message handler with bot_config bound
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, partial(handle_message, bot_config=bot_config)))
 
-    # Register message handler
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    # Initialize and start
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    
+    # Keep it running until interrupted
+    while True:
+        await asyncio.sleep(3600)
 
-# -------------------------
-# Run the bot
-# -------------------------
+async def main():
+    configs = get_bot_configs()
+    if not configs:
+        logger.warning("No bot configurations found in database.")
+        return
 
-def run_bot():
-    TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not TELEGRAM_TOKEN:
-        raise ValueError("TELEGRAM_BOT_TOKEN not set in environment")
-
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-
-    # Register commands
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("explain", explain))
-    app.add_handler(CommandHandler("correct", correct))
-    app.add_handler(CommandHandler("practice", practice))
-    app.add_handler(CommandHandler("vocab", vocab))
-    app.add_handler(CommandHandler("quiz", quiz))
-    app.add_handler(CommandHandler("help", help_command))
-
-    # Register message handler
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    # Start bot
-    app.run_polling()
+    # Start all bots concurrently
+    await asyncio.gather(*(run_single_bot(config) for config in configs))
 
 if __name__ == "__main__":
-    run_bot()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bots stopped by user.")
