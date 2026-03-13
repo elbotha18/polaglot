@@ -20,6 +20,7 @@ from agent import (
     correct_grammar,
     explain_vocab,
     generate_quiz,
+    generate_welcome_message,
 )
 from database import (
     init_db, 
@@ -27,7 +28,8 @@ from database import (
     load_user_state, 
     add_message, 
     get_history,
-    get_bot_configs
+    get_bot_configs,
+    update_bot_welcome_message,
 )
 
 # Initialize database
@@ -73,14 +75,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_config: 
     user_id = update.effective_user.id
     bot_id = bot_config['id']
     lang_name = bot_config['language_name']
+    welcome_msg = bot_config.get('welcome_message')
+
+    # Generate and cache welcome message if it doesn't exist
+    if not welcome_msg:
+        await update.message.reply_chat_action(action="typing")
+        welcome_msg = await generate_welcome_message(lang_name)
+        update_bot_welcome_message(bot_id, welcome_msg)
+        # Update the local bot_config for the current session
+        bot_config['welcome_message'] = welcome_msg
     
     save_user_state(user_id, bot_id, mode="explain")
-    await update.message.reply_text(
-        f"Cześć! Jestem PolaGlot 🤖 Your personal {lang_name} language tutor.\n\n"
-        f"Just send me anything in English or {lang_name}, and I will help you learn!\n"
-        "I can translate, correct your grammar, explain words, or just chat.",
-        parse_mode="Markdown"
-    )
+    await update.message.reply_text(welcome_msg, parse_mode="Markdown")
 
 async def practice(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_config: dict):
     if not await check_access(update):
@@ -218,7 +224,11 @@ async def run_single_bot(bot_config):
     # Initialize and start
     await app.initialize()
     await app.start()
-    await app.updater.start_polling()
+    
+    # Extra delay to allow previous instances to clear
+    await asyncio.sleep(5)
+    
+    await app.updater.start_polling(drop_pending_updates=True)
     
     # Keep it running until interrupted
     while True:
@@ -230,8 +240,15 @@ async def main():
         logger.warning("No bot configurations found in database.")
         return
 
-    # Start all bots concurrently
-    await asyncio.gather(*(run_single_bot(config) for config in configs))
+    # Start all bots concurrently with a substantial delay between them
+    # Use gather to run them all in parallel after they've initialized
+    tasks = []
+    for config in configs:
+        tasks.append(run_single_bot(config))
+        # Large delay to ensure the previous bot is fully registered
+        await asyncio.sleep(10)
+        
+    await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
     try:

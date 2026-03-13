@@ -37,7 +37,7 @@ async def translate_to_target(text: str, target_language: str) -> str:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-flash-latest",
             contents=prompt
         )
         return response.text.strip()
@@ -58,7 +58,7 @@ async def translate_to_english(text: str, source_language: str) -> str:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-flash-latest",
             contents=prompt
         )
         return response.text.strip()
@@ -121,7 +121,7 @@ async def tutor_response(user_message: str, target_language: str, target_code: s
         )
 
         response = await client.aio.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-flash-latest",
             contents=prompt
         )
 
@@ -145,7 +145,7 @@ async def conversation_practice(user_message: str, target_language: str) -> str:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-flash-latest",
             contents=prompt
         )
         return clean_text(response.text)
@@ -162,7 +162,7 @@ async def correct_grammar(user_message: str, target_language: str) -> str:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-flash-latest",
             contents=prompt
         )
         return clean_text(response.text)
@@ -179,12 +179,32 @@ async def explain_vocab(user_message: str, target_language: str) -> str:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-flash-latest",
             contents=prompt
         )
         return clean_text(response.text)
     except Exception:
         return "Sorry, I can't explain the vocabulary right now."
+
+async def generate_welcome_message(target_language: str) -> str:
+    """Generate a localized welcome message for the /start command."""
+    prompt = (
+        f"You are PolaGlot, a warm and encouraging {target_language} language teacher.\n"
+        f"Create a short, welcoming message for a new student starting their first lesson in {target_language}.\n"
+        f"Include a greeting in {target_language}, an introduction of yourself (PolaGlot), "
+        f"and a brief explanation that the student can send anything in English or {target_language} to start learning.\n"
+        f"Use emojis and keep it friendly. Respond ONLY with the message text."
+    )
+    try:
+        response = await client.aio.models.generate_content(
+            model="gemini-flash-latest",
+            contents=prompt
+        )
+        return clean_text(response.text)
+    except Exception as e:
+        print(f"Error generating welcome message: {e}")
+        # Generic fallback
+        return f"Hello! I am PolaGlot, your {target_language} tutor. Send me a message to begin!"
 
 async def generate_quiz(target_language: str) -> tuple[str, str]:
     """Provide a short target language quiz question and its answer."""
@@ -200,7 +220,7 @@ async def generate_quiz(target_language: str) -> tuple[str, str]:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-flash-latest",
             contents=prompt
         )
         quiz_text = clean_text(response.text)
