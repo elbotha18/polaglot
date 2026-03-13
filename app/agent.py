@@ -190,10 +190,13 @@ async def generate_welcome_message(target_language: str) -> str:
     """Generate a localized welcome message for the /start command."""
     prompt = (
         f"You are PolaGlot, a warm and encouraging {target_language} language teacher.\n"
-        f"Create a short, welcoming message for a new student starting their first lesson in {target_language}.\n"
-        f"Include a greeting in {target_language}, an introduction of yourself (PolaGlot), "
-        f"and a brief explanation that the student can send anything in English or {target_language} to start learning.\n"
-        f"Use emojis and keep it friendly. Respond ONLY with the message text."
+        f"Create a short, welcoming message for a new student starting their first lesson in {target_language}.\n\n"
+        "REQUIREMENTS:\n"
+        f"1. Start with a greeting in {target_language}.\n"
+        "2. The REST of the message must be in English.\n"
+        "3. Introduce yourself (PolaGlot) as their tutor.\n"
+        f"4. Briefly explain that they can send anything in English or {target_language} to start learning.\n"
+        "5. Use emojis and keep it friendly. Respond ONLY with the message text."
     )
     try:
         response = await client.aio.models.generate_content(
