@@ -52,6 +52,7 @@ def init_db():
                     token TEXT UNIQUE NOT NULL,
                     language_name VARCHAR(100) NOT NULL,
                     language_code VARCHAR(10) NOT NULL,
+                    welcome_message TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
@@ -95,12 +96,30 @@ def get_bot_configs():
         return []
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, token, language_name, language_code FROM bot_configs")
+            cur.execute("SELECT id, token, language_name, language_code, welcome_message FROM bot_configs")
             rows = cur.fetchall()
-            return [{"id": r[0], "token": r[1], "language_name": r[2], "language_code": r[3]} for r in rows]
+            return [{"id": r[0], "token": r[1], "language_name": r[2], "language_code": r[3], "welcome_message": r[4]} for r in rows]
     except Exception as e:
         print(f"Error fetching bot configs: {e}")
         return []
+    finally:
+        release_connection(conn)
+
+def update_bot_welcome_message(bot_id, welcome_message):
+    """Update the welcome message for a specific bot."""
+    conn = get_connection()
+    if not conn:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE bot_configs SET welcome_message = %s WHERE id = %s",
+                (welcome_message, bot_id)
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"Error updating welcome message: {e}")
+        conn.rollback()
     finally:
         release_connection(conn)
 
