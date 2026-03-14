@@ -1,7 +1,10 @@
 import os
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 from langdetect import detect, DetectorFactory
+from gtts import gTTS
+import io
 
 # -------------------------
 # Ensure reproducible lang detection
@@ -130,6 +133,90 @@ async def tutor_response(user_message: str, target_language: str, target_code: s
     except Exception as e:
         print(f"Agent Error: {e}")
         return "Sorry, PolaGlot is a bit busy. Try again!"
+
+async def tutor_voice_response(audio_bytes: bytes, target_language: str, target_code: str, history: list = None) -> tuple[str, bytes]:
+    """
+    Handles voice input: Transcribes/Understands audio, generates a tutor response,
+    and returns both the text and a TTS version of the response.
+    """
+    try:
+        # Prepare context from history
+        context_str = ""
+        if history:
+            for msg in history:
+                role = "Student" if msg["role"] == "user" else "PolaGlot"
+                context_str += f"{role}: {msg['content']}\n"
+
+        prompt = (
+            f"You are PolaGlot, a warm and encouraging {target_language} language teacher.\n\n"
+            "TASK:\n"
+            "The student has sent a VOICE NOTE. Listen to it carefully.\n"
+            "1. Acknowledge what they said (transcribe the gist of it if helpful).\n"
+            "2. Provide feedback on their pronunciation or spoken delivery if you detect any issues.\n"
+            "3. Determine if they were asking a QUESTION or making a PHRASE/STATEMENT.\n\n"
+            "IF IT IS A PHRASE (Greeting, statement, single word):\n"
+            "- Show what you heard and its translation.\n"
+            "- Provide a Breakdown of words and idiomatic phrases.\n\n"
+            "IF IT IS A QUESTION:\n"
+            "- Show what you heard and its translation.\n"
+            f"- Answer the question in {target_language} first, then English.\n"
+            "- Provide a Breakdown of important words, grammatical structures, or phrases.\n\n"
+            "FORMAT:\n"
+            "**What I heard:** <Transcribed/summarized spoken input>\n"
+            "**Translation:** `<Translated text>`\n\n"
+            "---\n\n"
+            "**Pronunciation Note:** <Encouraging feedback on their speaking>\n\n"
+            "**PolaGlot:**\n"
+            f"`<Your {target_language} Answer/Response>`\n"
+            "*Translation: <Your English Answer/Response>*\n\n\n"
+            "**Breakdown:**\n"
+            "• `<word or phrase>`: <explanation>\n\n"
+            f"CONVERSATION HISTORY:\n{context_str}"
+        )
+
+        # Multimodal request
+        response = await client.aio.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                prompt,
+                types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav")
+            ]
+        )
+
+        text_reply = clean_text(response.text)
+        
+        # Generate TTS for the PolaGlot response part
+        # We try to extract just the target language response for the voice reply
+        voice_text = text_reply
+        if "**PolaGlot:**" in text_reply:
+            parts = text_reply.split("**PolaGlot:**")
+            if len(parts) > 1:
+                # Get the first line of the PolaGlot section which should be the target language
+                lines = parts[1].strip().splitlines()
+                if lines:
+                    voice_text = lines[0].replace("`", "").strip()
+
+        audio_reply_bytes = await generate_tts(voice_text, target_code)
+        
+        return text_reply, audio_reply_bytes
+
+    except Exception as e:
+        print(f"Agent Voice Error: {e}")
+        return "Sorry, I couldn't process your voice note.", None
+
+async def generate_tts(text: str, lang_code: str) -> bytes:
+    """Generates TTS audio bytes for the given text."""
+    try:
+        # Use gTTS to generate speech
+        # We can also use Gemini's native output if preferred, 
+        # but gTTS is a solid independent fallback.
+        tts = gTTS(text=text, lang=lang_code)
+        fp = io.BytesIO()
+        tts.write_to_fp(fp)
+        return fp.getvalue()
+    except Exception as e:
+        print(f"TTS Error: {e}")
+        return b""
 
 # -------------------------
 # Mode-specific functions

@@ -10,12 +10,16 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from pydub import AudioSegment
+import tempfile
+import io
 from functools import partial
 
 # Load environment variables from .env file
 load_dotenv()
 from agent import (
     tutor_response,
+    tutor_voice_response,
     conversation_practice,
     correct_grammar,
     explain_vocab,
@@ -198,6 +202,76 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE, bot
 
     await update.message.reply_text(reply, parse_mode="Markdown")
 
+async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_config: dict):
+    if not await check_access(update):
+        await update.message.reply_text(private_access_message(update))
+        return
+
+    user_id = update.effective_user.id
+    bot_id = bot_config['id']
+    lang_name = bot_config['language_name']
+    lang_code = bot_config['language_code']
+    
+    # Load user state and history
+    db_state = load_user_state(user_id, bot_id)
+    history = get_history(user_id, bot_id)
+
+    # Show "typing..." status
+    await update.message.reply_chat_action(action="record_voice")
+
+    ogg_path = None
+    wav_path = None
+
+    try:
+        # 1. Download voice note (.ogg)
+        voice = update.message.voice
+        file = await context.bot.get_file(voice.file_id)
+        
+        with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as ogg_file:
+            ogg_path = ogg_file.name
+            await file.download_to_drive(ogg_path)
+
+        # 2. Convert .ogg to .wav using pydub
+        wav_path = ogg_path.replace(".ogg", ".wav")
+        audio = AudioSegment.from_ogg(ogg_path)
+        audio.export(wav_path, format="wav")
+
+        # 3. Read wav bytes
+        with open(wav_path, "rb") as f:
+            audio_bytes = f.read()
+
+        # 4. Call agent
+        reply_text, reply_audio_bytes = await tutor_voice_response(
+            audio_bytes, lang_name, lang_code, history
+        )
+
+        # 5. Reply to user
+        if reply_audio_bytes:
+            # Send voice first or text first? Usually text then voice or vice-versa.
+            # We'll send the text response
+            await update.message.reply_text(reply_text, parse_mode="Markdown")
+            
+            # Then the voice response
+            with io.BytesIO(reply_audio_bytes) as audio_file:
+                audio_file.name = "reply.mp3" 
+                await update.message.reply_voice(voice=audio_file)
+        else:
+            await update.message.reply_text(reply_text, parse_mode="Markdown")
+
+        # Save interaction to history
+        add_message(user_id, bot_id, "user", "[Voice Note]")
+        add_message(user_id, bot_id, "assistant", reply_text)
+
+    except Exception as e:
+        logger.error(f"Voice Bot Error: {e}")
+        await update.message.reply_text("Sorry, PolaGlot cannot process your voice note right now. (Check if ffmpeg is installed)")
+
+    finally:
+        # Clean up temporary files
+        for path in [ogg_path, wav_path]:
+            if path and os.path.exists(path):
+                os.remove(path)
+
 # -------------------------
 # Run the bots
 # -------------------------
@@ -220,6 +294,7 @@ async def run_single_bot(bot_config):
 
     # Register message handler with bot_config bound
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, partial(handle_message, bot_config=bot_config)))
+    app.add_handler(MessageHandler(filters.VOICE, partial(handle_voice, bot_config=bot_config)))
 
     # Initialize and start
     await app.initialize()
