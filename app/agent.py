@@ -37,7 +37,7 @@ async def translate_to_target(text: str, target_language: str) -> str:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.5-flash",
             contents=prompt
         )
         return response.text.strip()
@@ -58,7 +58,7 @@ async def translate_to_english(text: str, source_language: str) -> str:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.5-flash",
             contents=prompt
         )
         return response.text.strip()
@@ -121,7 +121,7 @@ async def tutor_response(user_message: str, target_language: str, target_code: s
         )
 
         response = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.5-flash",
             contents=prompt
         )
 
@@ -145,7 +145,7 @@ async def conversation_practice(user_message: str, target_language: str) -> str:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.5-flash",
             contents=prompt
         )
         return clean_text(response.text)
@@ -162,7 +162,7 @@ async def correct_grammar(user_message: str, target_language: str) -> str:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.5-flash",
             contents=prompt
         )
         return clean_text(response.text)
@@ -179,7 +179,7 @@ async def explain_vocab(user_message: str, target_language: str) -> str:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.5-flash",
             contents=prompt
         )
         return clean_text(response.text)
@@ -200,7 +200,7 @@ async def generate_welcome_message(target_language: str) -> str:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.5-flash",
             contents=prompt
         )
         return clean_text(response.text)
@@ -223,7 +223,7 @@ async def generate_quiz(target_language: str) -> tuple[str, str]:
     )
     try:
         response = await client.aio.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.5-flash",
             contents=prompt
         )
         quiz_text = clean_text(response.text)
