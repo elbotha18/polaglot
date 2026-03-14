@@ -5,7 +5,7 @@ beautifulsoup4==4.14.3
 certifi==2026.2.25
 cffi==2.0.0
 charset-normalizer==3.4.5
-click==8.3.1
+click>=8.1.0,<8.2.0
 cmdop==2026.3.5.1
 cryptography==46.0.5
 distro==1.9.0
@@ -62,3 +62,4 @@ wcwidth==0.6.0
 websockets==16.0
 pydub==0.25.1
 gTTS==2.5.4
+edge-tts

@@ -4,6 +4,7 @@ from google import genai
 from google.genai import types
 from langdetect import detect, DetectorFactory
 from gtts import gTTS
+import edge_tts
 import io
 
 # -------------------------
@@ -205,18 +206,43 @@ async def tutor_voice_response(audio_bytes: bytes, target_language: str, target_
         return "Sorry, I couldn't process your voice note.", None
 
 async def generate_tts(text: str, lang_code: str) -> bytes:
-    """Generates TTS audio bytes for the given text."""
+    """Generates TTS audio bytes for the given text using a high-quality female voice."""
     try:
-        # Use gTTS to generate speech
-        # We can also use Gemini's native output if preferred, 
-        # but gTTS is a solid independent fallback.
-        tts = gTTS(text=text, lang=lang_code)
-        fp = io.BytesIO()
-        tts.write_to_fp(fp)
-        return fp.getvalue()
+        # Map simple lang codes to high-quality female neural voices
+        voice_map = {
+            "pl": "pl-PL-ZofiaNeural",
+            "de": "de-DE-KatjaNeural",
+            "es": "es-ES-ElviraNeural",
+            "fr": "fr-FR-DeniseNeural",
+            "it": "it-IT-ElsaNeural"
+        }
+        
+        voice = voice_map.get(lang_code.lower())
+        
+        if voice:
+            # Use Edge-TTS for high-quality neural female voices
+            communicate = edge_tts.Communicate(text, voice)
+            audio_data = b""
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    audio_data += chunk["data"]
+            return audio_data
+        else:
+            # Fallback to gTTS for other languages
+            tts = gTTS(text=text, lang=lang_code)
+            fp = io.BytesIO()
+            tts.write_to_fp(fp)
+            return fp.getvalue()
     except Exception as e:
         print(f"TTS Error: {e}")
-        return b""
+        # Final fallback to gTTS
+        try:
+            tts = gTTS(text=text, lang=lang_code)
+            fp = io.BytesIO()
+            tts.write_to_fp(fp)
+            return fp.getvalue()
+        except:
+            return b""
 
 # -------------------------
 # Mode-specific functions
